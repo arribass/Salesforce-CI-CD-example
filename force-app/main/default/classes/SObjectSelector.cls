@@ -1,10 +1,9 @@
 /**
  * @description       : Selector abstract class
- * @last modified on  : 01-04-2025
- * @last modified by  : aberuete
+ * @last modified by  : aarribas
 **/
-public abstract with sharing class SObjectSelector {
-
+public abstract with sharing class SObjectSelector
+{
     public String sObjectName;
     public List<String> fields;
 
