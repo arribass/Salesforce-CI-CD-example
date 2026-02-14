@@ -64,8 +64,7 @@ public abstract with sharing class SObjectSelector
 
     /**
      * Method that gets the records with the given Names and additional conditions
-     * @author aberuete
-     * @date 01/04/2025
+     * @author aarribas
      */
     public List<SObject> selectSObjectsByNameWithAdditionalConditions(Set<String> recordNames, List<String> additionalConditions)
     {
