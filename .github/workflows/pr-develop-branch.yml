@@ -33,9 +33,9 @@ jobs:
       # -----------------------------
       # Install Plugins
       # -----------------------------
-      - name: Install sf-git-delta
+      - name: Install sfdx-git-delta
         run: |
-          sf plugins install sf-git-delta
+          sf plugins install sfdx-git-delta
           sf plugins
 
       - name: Install Scanner
