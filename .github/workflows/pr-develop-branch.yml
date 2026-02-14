@@ -39,7 +39,7 @@ jobs:
           sf plugins
 
       - name: Install Scanner
-        run: sf plugins install @salesforce/sf-scanner
+        run: sf plugins install @salesforce/sfdx-scanner
 
       # -----------------------------
       # Install Java (scanner needs it)
