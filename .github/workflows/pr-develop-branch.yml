@@ -76,18 +76,18 @@ jobs:
               # Here we print the content of the environment variable and
               # pipe to a a text file.
 
-              # Then we call the local script parsePR.js, which will create
-              # a new file called testsToRun.txt. This file will have the list
-              # of tests to run separated by a comma
+              # # Then we call the local script parsePR.js, which will create
+              # # a new file called testsToRun.txt. This file will have the list
+              # # of tests to run separated by a comma
 
-              # Finally, we add the list of tests to the $GITHUB_ENV variable
-              # as this allows us to reference the list in a subsequent step.  If you
-              # were using a normal env variable, its value would not be available outside this step.
-              run: |
-                  echo $PR_BODY > ./pr_body.txt
-                  node ./parsePR.js              
-                  TESTS=$(cat testsToRun.txt)       
-                  echo "APEX_TESTS=$TESTS" >> $GITHUB_ENV
+              # # Finally, we add the list of tests to the $GITHUB_ENV variable
+              # # as this allows us to reference the list in a subsequent step.  If you
+              # # were using a normal env variable, its value would not be available outside this step.
+              # run: |
+              #     echo $PR_BODY > ./pr_body.txt
+              #     node ./parsePR.js              
+              #     TESTS=$(cat testsToRun.txt)       
+              #     echo "APEX_TESTS=$TESTS" >> $GITHUB_ENV
                   
             # Now Install Salesforce CLI
             - name: 'Install Salesforce CLI'
