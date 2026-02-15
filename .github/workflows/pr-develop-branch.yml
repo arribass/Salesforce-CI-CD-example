@@ -33,13 +33,11 @@ jobs:
       # -----------------------------
       # Install Plugins
       # -----------------------------
-      - name: Install sfdx-git-delta
+      - name: Install Plugins
         run: |
           sf plugins install sfdx-git-delta
+          sf plugins install @salesforce/sfdx-scanner
           sf plugins
-
-      - name: Install Scanner
-        run: sf plugins install @salesforce/sfdx-scanner
 
       # -----------------------------
       # Install Java (scanner needs it)
@@ -59,19 +57,37 @@ jobs:
         run: sf org login sfdx-url --sfdx-url-file sfdx_auth.txt --alias integration --set-default
 
       # -----------------------------
-      # Generate delta
+      # Generate delta (REAL ONE)
       # -----------------------------
       - name: Create delta
         run: |
-          echo y | sf plugins install sfdx-git-delta
-          sf plugins
+          mkdir changed-sources
+          sf sgd source delta \
+            --to HEAD \
+            --from origin/dev \
+            --output-dir changed-sources \
+            --generate-delta \
+            --source-dir force-app
 
       # -----------------------------
-      # Scan code
+      # Check if delta has content
+      # -----------------------------
+      - name: Check delta exists
+        id: delta_check
+        run: |
+          if [ -d "changed-sources/force-app" ] && [ "$(ls -A changed-sources/force-app)" ]; then
+            echo "delta_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "delta_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      # -----------------------------
+      # Scan code (only if delta exists)
       # -----------------------------
       - name: Run Scanner
+        if: steps.delta_check.outputs.delta_exists == 'true'
         run: |
-          if ls changed-sources/force-app/**/*.cls 1> /dev/null 2>&1; then
+          if compgen -G "changed-sources/force-app/**/*.cls" > /dev/null; then
             sf scanner run \
               --engine pmd \
               --target "changed-sources/force-app/**/*.cls" \
@@ -79,9 +95,8 @@ jobs:
               --outfile changed-sources/apexScanResults.sarif || true
           else
             echo "No Apex classes to scan"
-            echo '{}' > changed-sources/apexScanResults.sarif
           fi
-      
+
       - name: Upload SARIF
         if: hashFiles('changed-sources/apexScanResults.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
@@ -89,9 +104,10 @@ jobs:
           sarif_file: changed-sources/apexScanResults.sarif
 
       # -----------------------------
-      # Validate Deploy (Check Only)
+      # Validate Deploy (only if delta exists)
       # -----------------------------
       - name: Validate deploy delta
+        if: steps.delta_check.outputs.delta_exists == 'true'
         run: |
           sf project deploy start \
             --source-dir changed-sources/force-app \
