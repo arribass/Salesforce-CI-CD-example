@@ -62,7 +62,7 @@ jobs:
       - name: Create delta
         run: |
           mkdir changed-sources
-          sfdx sgd:source:delta \
+          sf sgd-source-delta \
             --to HEAD \
             --from origin/dev \
             --output-dir changed-sources \
