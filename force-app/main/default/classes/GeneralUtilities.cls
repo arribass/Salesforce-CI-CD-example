@@ -1,3 +1,9 @@
+/**
+ * GeneralUtilities.cls
+ * Descripción: Clase de utilidades generales para operaciones comunes en Salesforce.
+ * 
+ * @author: aarribas
+ */
 public class GeneralUtilities
 {
     
