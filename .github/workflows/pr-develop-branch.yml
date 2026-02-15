@@ -110,13 +110,45 @@ jobs:
       - name: Validate deploy delta
         if: steps.delta_check.outputs.delta_exists == 'true'
         run: |
-          sf project deploy start \
-            --source-dir changed-sources/force-app \
-            --target-org integration \
-            --dry-run \
-            --test-level RunLocalTests \
-            --wait 30 \
-            --json
+          echo "Detecting Apex changes..."
+      
+          # Detect any Apex classes
+          APEX_FILES=$(find changed-sources/force-app -name "*.cls")
+      
+          # Detect test classes only
+          TEST_CLASSES=$(find changed-sources/force-app -name "*Test.cls" -exec basename {} .cls \; | paste -sd "," -)
+      
+          if [ -n "$TEST_CLASSES" ]; then
+            echo "Running specified tests: $TEST_CLASSES"
+            sf project deploy start \
+              --source-dir changed-sources/force-app \
+              --target-org integration \
+              --dry-run \
+              --test-level RunSpecifiedTests \
+              --tests "$TEST_CLASSES" \
+              --wait 30 \
+              --json
+      
+          elif [ -n "$APEX_FILES" ]; then
+            echo "Apex detected but no test classes in delta → running local tests"
+            sf project deploy start \
+              --source-dir changed-sources/force-app \
+              --target-org integration \
+              --dry-run \
+              --test-level RunLocalTests \
+              --wait 30 \
+              --json
+      
+          else
+            echo "No Apex detected → skipping tests"
+            sf project deploy start \
+              --source-dir changed-sources/force-app \
+              --target-org integration \
+              --dry-run \
+              --test-level NoTestRun \
+              --wait 30 \
+              --json
+          fi
 
       # -----------------------------
       # Validate destructive changes
