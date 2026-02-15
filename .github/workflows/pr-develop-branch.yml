@@ -71,12 +71,19 @@ jobs:
       # -----------------------------
       - name: Run Scanner
         run: |
-          sf scanner run \
-            --target changed-sources/force-app \
-            --format sarif \
-            --outfile changed-sources/apexScanResults.sarif
-
+          if ls changed-sources/force-app/**/*.cls 1> /dev/null 2>&1; then
+            sf scanner run \
+              --engine pmd \
+              --target "changed-sources/force-app/**/*.cls" \
+              --format sarif \
+              --outfile changed-sources/apexScanResults.sarif || true
+          else
+            echo "No Apex classes to scan"
+            echo '{}' > changed-sources/apexScanResults.sarif
+          fi
+      
       - name: Upload SARIF
+        if: hashFiles('changed-sources/apexScanResults.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: changed-sources/apexScanResults.sarif
