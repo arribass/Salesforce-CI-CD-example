@@ -112,20 +112,24 @@ jobs:
         run: |
           echo "Detecting Apex changes..."
       
-          # Detect any Apex classes
           APEX_FILES=$(find changed-sources/force-app -name "*.cls")
-      
-          # Detect test classes only
-          TEST_CLASSES=$(find changed-sources/force-app -name "*Test.cls" -exec basename {} .cls \; | paste -sd "," -)
+          TEST_CLASSES=$(find changed-sources/force-app -name "*Test.cls" -exec basename {} .cls \;)
       
           if [ -n "$TEST_CLASSES" ]; then
-            echo "Running specified tests: $TEST_CLASSES"
+            echo "Running specified tests:"
+            echo "$TEST_CLASSES"
+      
+            TEST_ARGS=""
+            for test in $TEST_CLASSES; do
+              TEST_ARGS="$TEST_ARGS --tests $test"
+            done
+      
             sf project deploy start \
               --source-dir changed-sources/force-app \
               --target-org integration \
               --dry-run \
               --test-level RunSpecifiedTests \
-              --tests "$TEST_CLASSES" \
+              $TEST_ARGS \
               --wait 30 \
               --json
       
@@ -149,7 +153,6 @@ jobs:
               --wait 30 \
               --json
           fi
-
       # -----------------------------
       # Validate destructive changes
       # -----------------------------
