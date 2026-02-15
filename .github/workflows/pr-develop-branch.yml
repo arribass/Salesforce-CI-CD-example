@@ -63,13 +63,8 @@ jobs:
       # -----------------------------
       - name: Create delta
         run: |
-          mkdir changed-sources
-          sf sgd source delta \
-            --to HEAD \
-            --from origin/dev \
-            --output-dir changed-sources \
-            --generate-delta \
-            --source-dir force-app
+          echo y | sf plugins install sfdx-git-delta
+          sf plugins
 
       # -----------------------------
       # Scan code
