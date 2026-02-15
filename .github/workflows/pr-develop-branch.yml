@@ -113,7 +113,7 @@ jobs:
           sf project deploy start \
             --source-dir changed-sources/force-app \
             --target-org integration \
-            --check-only \
+            --dry-run \
             --test-level RunLocalTests \
             --wait 30 \
             --json
@@ -128,5 +128,5 @@ jobs:
             --manifest changed-sources/destructiveChanges/package.xml \
             --pre-destructive-changes changed-sources/destructiveChanges/destructiveChanges.xml \
             --target-org integration \
-            --check-only \
+            --dry-run \
             --wait 30
