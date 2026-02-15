@@ -56,7 +56,10 @@ jobs:
         run: echo "${{ secrets.SFDX_INTEGRATION_URL }}" > sfdx_auth.txt
 
       - name: Authenticate org
-        run: sf auth sfdx-url store -f sfdx_auth.txt -a integration -s
+        run: sf org login sfdx-url \
+              --sfdx-url-file sfdx_auth.txt \
+              --alias integration \
+              --set-default
 
       # -----------------------------
       # Generate delta
