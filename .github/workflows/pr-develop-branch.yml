@@ -46,7 +46,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install default-jdk -y
-
+      - name: Install SGD
+        run: echo y | sf plugins install "sfdx-git-delta@${{ vars.SGD_VERSION }}"
       # -----------------------------
       # Auth
       # -----------------------------
