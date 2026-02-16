@@ -3,67 +3,172 @@ name: Deploy integration branch to integration and staging/uat orgs
 
 # Definition when the workflow should run
 on:
-    push:
-      branches: [ integration ]
-      paths:
-        - 'force-app/**'
-            
+  push:
+    branches: [ integration ]
+    paths:
+      - 'force-app/**'
 
-# Jobs to be executed
 jobs:
-    deploy-branch-to-int-and-staging-orgs:
-        runs-on: ubuntu-latest
-        if: ${{ github.actor != 'dependabot[bot]' }}
-        steps:
-            # Install Salesforce CLI
-            - name: 'Install Salesforce CLI'
-              run: |
-                  wget https://developer.salesforce.com/media/salesforce-cli/sfdx/channels/stable/sfdx-linux-x64.tar.xz
-                  mkdir ~/sfdx
-                  tar xJf sfdx-linux-x64.tar.xz -C ~/sfdx --strip-components 1
-                  echo "$HOME/sfdx/bin" >> $GITHUB_PATH
-                  ~/sfdx/bin/sfdx version
+  deploy-branch-to-int-and-staging-orgs:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor != 'dependabot[bot]' }}
 
-            # install SFDX-Git-Delta plugin - https://github.com/scolladon/sfdx-git-delta
-            - name: 'Installing sfdx git delta'
-              run: | 
-                  echo y | sfdx plugins:install sfdx-git-delta
-                  sfdx plugins 
+    steps:
 
-            # Checkout the source code
-            - name: 'Checkout source code'
-              uses: actions/checkout@v3
-              with:
-                fetch-depth: 0
+      # -----------------------------
+      # Setup Node
+      # -----------------------------
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-            # Store secret for both otgs
-            - name: 'Populate auth file with SFDX_URL secret of the integration and staging orgs'
-              shell: bash
-              run: |
-                  echo ${{ secrets.SFDX_INTEGRATION_URL}} > ./SFDX_INTEGRATION_URL.txt
-                  echo ${{ secrets.SFDX_STAGING_URL}} > ./SFDX_STAGING_URL.txt
+      # -----------------------------
+      # Checkout source code
+      # -----------------------------
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-            - name: 'Create delta packages for new, modified or deleted metadata'
-              run: | 
-                  mkdir changed-sources
-                  sfdx sgd:source:delta --to "HEAD" --from "HEAD^" --output changed-sources/ --generate-delta --source force-app/
+      # -----------------------------
+      # Install Salesforce CLI (NEW)
+      # -----------------------------
+      - name: Install Salesforce CLI
+        run: |
+          npm install @salesforce/cli --global
+          sf version
 
-            # Authenticate to org
-            - name: 'Authenticate to Integration Org'
-              run: sfdx auth:sfdxurl:store -f ./SFDX_INTEGRATION_URL.txt -s -a integration
+      # -----------------------------
+      # Install sfdx-git-delta
+      # -----------------------------
+      - name: Install sfdx-git-delta
+        run: |
+          echo y | sf plugins install sfdx-git-delta
+          sf plugins
 
-            - name: 'Deploy the entire branch to Integration org'
-              run: sfdx force:source:deploy -p force-app --testlevel RunLocalTests --json
+      # -----------------------------
+      # Install Java
+      # -----------------------------
+      - name: Install Java
+        run: |
+          sudo apt-get update
+          sudo apt-get install default-jdk -y
 
-            - name: 'Deploy destructive changes (if any) to Integration org'
-              run: sfdx force:mdapi:deploy -d "changed-sources/destructiveChanges" --checkonly --ignorewarnings 
+      # -----------------------------
+      # Create delta packages
+      # -----------------------------
+      - name: Create delta packages
+        run: |
+          mkdir changed-sources
+          sf sgd source delta \
+            --to HEAD \
+            --from HEAD^ \
+            --output-dir changed-sources \
+            --generate-delta \
+            --source-dir force-app
 
-            # Authenticate to org
-            - name: 'Authenticate to Staging Org to Staging org'
-              run: sfdx auth:sfdxurl:store -f ./SFDX_STAGING_URL.txt -s -a staging
+      # -----------------------------
+      # Populate auth files
+      # -----------------------------
+      - name: Populate auth file with SFDX_URL secret of the integration and staging orgs
+        run: |
+          echo "${{ secrets.SFDX_INTEGRATION_URL }}" > ./SFDX_INTEGRATION_URL.txt
+          echo "${{ secrets.SFDX_STAGING_URL }}" > ./SFDX_STAGING_URL.txt
 
-            - name: 'Deploy the entire branch'
-              run: sfdx force:source:deploy -p force-app --testlevel RunLocalTests --json
+      # -----------------------------
+      # Authenticate to Integration Org
+      # -----------------------------
+      - name: Authenticate to Integration Org
+        run: |
+          sf org login sfdx-url \
+            --sfdx-url-file ./SFDX_INTEGRATION_URL.txt \
+            --alias integration \
+            --set-default
 
-            - name: 'Deploy destructive changes (if any) to Staging org'
-              run: sfdx force:mdapi:deploy -d "changed-sources/destructiveChanges" --checkonly --ignorewarnings
+      # -----------------------------
+      # Deploy delta to Integration
+      # -----------------------------
+      - name: Deploy delta to Integration org
+        run: |
+          if [ -d "changed-sources/force-app" ] && [ "$(ls -A changed-sources/force-app)" ]; then
+            sf project deploy start \
+              --source-dir changed-sources/force-app \
+              --target-org integration \
+              --test-level RunLocalTests \
+              --wait 60 \
+              --json
+          else
+            echo "No metadata changes to deploy."
+          fi
+
+      # -----------------------------
+      # Deploy destructive changes to Integration
+      # -----------------------------
+      - name: Deploy destructive changes to Integration org
+        if: hashFiles('changed-sources/destructiveChanges/destructiveChanges.xml') != ''
+        run: |
+          set +e
+          OUTPUT=$(sf deploy metadata \
+            --manifest changed-sources/destructiveChanges/package.xml \
+            --pre-destructive-changes changed-sources/destructiveChanges/destructiveChanges.xml \
+            --target-org integration \
+            --wait 60 2>&1)
+          EXIT_CODE=$?
+
+          echo "$OUTPUT"
+
+          if echo "$OUTPUT" | grep -q "NothingToDeploy"; then
+            echo "No destructive changes."
+            exit 0
+          fi
+
+          exit $EXIT_CODE
+
+      # -----------------------------
+      # Authenticate to Staging Org
+      # -----------------------------
+      - name: Authenticate to Staging Org
+        run: |
+          sf org login sfdx-url \
+            --sfdx-url-file ./SFDX_STAGING_URL.txt \
+            --alias staging \
+            --set-default
+
+      # -----------------------------
+      # Deploy delta to Staging org
+      # -----------------------------
+      - name: Deploy delta to Staging org
+        run: |
+          if [ -d "changed-sources/force-app" ] && [ "$(ls -A changed-sources/force-app)" ]; then
+            sf project deploy start \
+              --source-dir changed-sources/force-app \
+              --target-org staging \
+              --test-level RunLocalTests \
+              --wait 60 \
+              --json
+          else
+            echo "No metadata changes to deploy."
+          fi
+
+      # -----------------------------
+      # Deploy destructive changes to Staging
+      # -----------------------------
+      - name: Deploy destructive changes to Staging org
+        if: hashFiles('changed-sources/destructiveChanges/destructiveChanges.xml') != ''
+        run: |
+          set +e
+          OUTPUT=$(sf deploy metadata \
+            --manifest changed-sources/destructiveChanges/package.xml \
+            --pre-destructive-changes changed-sources/destructiveChanges/destructiveChanges.xml \
+            --target-org staging \
+            --wait 60 2>&1)
+          EXIT_CODE=$?
+
+          echo "$OUTPUT"
+
+          if echo "$OUTPUT" | grep -q "NothingToDeploy"; then
+            echo "No destructive changes."
+            exit 0
+          fi
+
+          exit $EXIT_CODE
