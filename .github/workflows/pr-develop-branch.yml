@@ -159,9 +159,20 @@ jobs:
       - name: Validate destructive changes
         if: hashFiles('changed-sources/destructiveChanges/destructiveChanges.xml') != ''
         run: |
-          sf deploy metadata \
+          set +e
+          OUTPUT=$(sf deploy metadata \
             --manifest changed-sources/destructiveChanges/package.xml \
             --pre-destructive-changes changed-sources/destructiveChanges/destructiveChanges.xml \
             --target-org integration \
             --dry-run \
-            --wait 30
+            --wait 30 2>&1)
+          EXIT_CODE=$?
+      
+          echo "$OUTPUT"
+      
+          if echo "$OUTPUT" | grep -q "NothingToDeploy"; then
+            echo "No destructive changes to validate."
+            exit 0
+          fi
+      
+          exit $EXIT_CODE
