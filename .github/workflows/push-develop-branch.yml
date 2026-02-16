@@ -71,10 +71,10 @@ jobs:
       # -----------------------------
       - name: Authenticate to Integration Org
         run: |
-          echo "${{ secrets.SFDX_INTEGRATION_URL }}" > ./SFDX_INTEGRATION_URL.txt
+          echo "${{ secrets.SFDX_MAIN_URL }}" > ./SFDX_MAIN_URL.txt
 
           sf org login sfdx-url \
-            --sfdx-url-file ./SFDX_INTEGRATION_URL.txt \
+            --sfdx-url-file ./SFDX_MAIN_URL.txt \
             --alias integration \
             --set-default
 
