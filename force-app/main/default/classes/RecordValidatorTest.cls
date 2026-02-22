@@ -2,6 +2,7 @@
  * Test class for RecordValidator
  * 
  * @author: aarribas
+ * @lastModified: 2024-06
  */
 @IsTest
 public with sharing class RecordValidatorTest
